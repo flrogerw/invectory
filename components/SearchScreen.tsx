@@ -124,22 +124,22 @@ const SearchScreen = () => {
             <ActivityIndicator size="large" color="red" />
           ) : (
 
-<FlatList
-        data={results}
-        numColumns={3}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => navigation.navigate("EditScreen", { imageId: item.id })}
-            style={styles.imageCard}
-          >
-            <Image source={{ uri: item.path }} style={styles.image} />
-          </Pressable>
-        )}
-        keyExtractor={(item) => item.id.toString()}
-      />
+            <FlatList
+              data={results}
+              numColumns={3}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => navigation.navigate("EditScreen", { imageId: item.id })}
+                  style={styles.imageCard}
+                >
+                  <Image source={{ uri: item.path }} style={styles.image} />
+                </Pressable>
+              )}
+              keyExtractor={(item) => item.id.toString()}
+            />
 
 
-  
+
           )}
 
           {/* Button to take another picture */}

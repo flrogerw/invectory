@@ -1,25 +1,38 @@
 {
   "expo": {
-    "name": "CoverMatch",
-    "slug": "CoverMatch",
+    "name": "InVectory",
+    "slug": "InVectory",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "plugins": [
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "InVectory needs access to your Camera."
+        }
+      ]
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.flrogerw.InVectory",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Invectory requires access to the camera to take photos of album covers."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.flrogerw.InVectory"
     },
     "web": {
       "favicon": "./assets/favicon.png"

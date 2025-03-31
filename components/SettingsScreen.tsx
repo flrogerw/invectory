@@ -16,7 +16,7 @@ const SettingsScreen = () => {
       const darkModeValue = await AsyncStorage.getItem("darkMode");
       const notificationsValue = await AsyncStorage.getItem("notifications");
       const usernameValue = await AsyncStorage.getItem("username");
-      
+
       if (darkModeValue !== null) setDarkMode(JSON.parse(darkModeValue));
       if (notificationsValue !== null) setNotifications(JSON.parse(notificationsValue));
       if (usernameValue !== null) setUsername(usernameValue);
@@ -40,10 +40,10 @@ const SettingsScreen = () => {
     <View style={styles.container}>
       <Text style={styles.label}>Dark Mode</Text>
       <Switch value={darkMode} onValueChange={(value) => setDarkMode(value)} />
-      
+
       <Text style={styles.label}>Silent Camera Shutter</Text>
       <Switch value={notifications} onValueChange={(value) => setNotifications(value)} />
-      
+
       <Text style={styles.label}>Username</Text>
       <TextInput
         style={styles.input}
@@ -51,7 +51,7 @@ const SettingsScreen = () => {
         onChangeText={setUsername}
         placeholder="Enter username"
       />
-      
+
       <Button title="Save Settings" onPress={saveSettings} />
     </View>
   );

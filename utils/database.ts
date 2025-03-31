@@ -1,20 +1,30 @@
-import { open } from '@op-engineering/op-sqlite';
-import * as tf from '@tensorflow/tfjs';
-import '@tensorflow/tfjs-react-native';
-import * as mobilenet from '@tensorflow-models/mobilenet';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { decodeJpeg } from '@tensorflow/tfjs-react-native';
-import { AppState } from 'react-native';
-import * as FileSystem from "expo-file-system";
+// database.ts
+/**
+ * Database Utilities
+ * ------------------
+ * Provides functions for initializing and interacting with the SQLite database.
+ */
 
+import { open } from '@op-engineering/op-sqlite';
+import * as FileSystem from 'expo-file-system';
+import { AppState, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getImageEmbedding, prepEmbedings }from './embedding';
+
+const DB_NAME = 'database.db';
+const DB_PATH = `${FileSystem.documentDirectory}SQLite/${DB_NAME}`;
 
 let db: any = null;
 
-interface SearchResult {
-  id: number;
-  path: string;
-}
+export interface SearchResult {
+    id: number;
+    path: string;
+    distance?: number; // Optional: cosine distance value
+  }
 
+/**
+ * Listens to app state changes and closes the database when the app goes inactive.
+ */
 AppState.addEventListener('change', (state) => {
   if (state === 'inactive' || state === 'background') {
     if (db) {
@@ -26,201 +36,138 @@ AppState.addEventListener('change', (state) => {
 
 /**
  * Initializes and returns the SQLite database instance.
+ * Creates the 'images' table and its index if they do not exist.
+ *
+ * @returns {Promise<any>} The database instance.
  */
-export const getDatabase = async () => {
+export const getDatabase = async (): Promise<any> => {
   if (!db) {
-    const dbPath = `${FileSystem.documentDirectory}SQLite/`;
-    const cleanPath = dbPath.replace("file://", "");
-    db = open({ name: 'database.db', location: cleanPath });
+    const dbDir = `${FileSystem.documentDirectory}SQLite/`;
+    const cleanPath = dbDir.replace("file://", "");
+    db = open({ name: DB_NAME, location: cleanPath });
     await db.execute(`
       CREATE TABLE IF NOT EXISTS images (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           path TEXT,
           embedding FLOAT32(1024)
-      );`);
-
+      );
+    `);
     await db.execute(`CREATE INDEX IF NOT EXISTS images_idx ON images (libsql_vector_idx(embedding));`);
-
   }
   return db;
 };
 
-function prepEmbedings(vectorEmbedding: number[]): Float32Array<ArrayBuffer> {
-
-  // Ensure all values in the embedding array are valid floats
-  const validEmbeddingArray = vectorEmbedding.map((val) => (val === -0 ? 0 : val));
-  const cleanedEmbedding = validEmbeddingArray.map(value => (isNaN(value) ? 0 : value));
-
-  return new Float32Array(cleanedEmbedding)
-}
-
-
-async function getCropDemensions(width: number, height: number) {
-  const minSize = Math.min(width, height);
-
-  // Calculate crop origin (centered)
-  const cropX = Math.floor((width - minSize) / 2);
-  const cropY = Math.floor((height - minSize) / 2);
-
-  return {
-    height: minSize,
-    originX: cropX,
-    originY: cropY,
-    width: minSize
-  }
-}
-
-async function saveImage(rawUri: string, width: number, height: number): Promise<string> {
-  const context = ImageManipulator.manipulate(rawUri);
-  const cropDemensions = await getCropDemensions(width, height);
-  // crop the image to a 1:1 aspect ratio
-  context.crop(cropDemensions)
-
-  // Resize the image to 224x224 using the non-deprecated 'manipulate'
-  context.resize({ height: 224, width: 224 });
-  const image = await context.renderAsync();
-  const { uri } = await image.saveAsync({
-    format: SaveFormat.JPEG,
-  });
-  // Define persistent path
-  const fileName = `image_${Date.now()}.jpg`;
-  const persistentUri = `${FileSystem.documentDirectory}${fileName}`;
-
-  // Move file to persistent storage
-  await FileSystem.moveAsync({
-    from: uri,
-    to: persistentUri,
-  });
-
-  return persistentUri;
-}
-
-
-function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      resolve(reader.result as ArrayBuffer);
-    };
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(blob);
-  });
-}
-
-
-async function getImageBuffer(localUri: string): Promise<ArrayBuffer> {
-
-  // Fetch the processed image as a blob
-  const response = await fetch(localUri);
-  const imageBlob = await response.blob();
-
-  return await blobToArrayBuffer(imageBlob);
-
-}
-
-export const getImageById = async (imageId: number): Promise<{ id: number, path: string }> => {
+/**
+ * Deletes the SQLite database file and resets the first launch flag.
+ */
+export const deleteDatabase = async (): Promise<void> => {
   try {
-    let db = await getDatabase();
-    const { rows } = await db.execute(`SELECT images.id, images.path FROM images WHERE id = ?;`, [imageId]);
-
-    return rows[0]
-
+    const dbExists = await FileSystem.getInfoAsync(DB_PATH);
+    if (dbExists.exists) {
+      await FileSystem.deleteAsync(DB_PATH);
+      await AsyncStorage.removeItem('isFirstLaunch');
+      Alert.alert("Success", "Database deleted successfully. Restart the app to take effect.");
+    } else {
+      Alert.alert("Info", "Database does not exist.");
+    }
   } catch (error) {
-    console.error('Error generating embedding:', error);
-    throw error;
+    console.error("Error deleting database:", error);
+    Alert.alert("Error", "Failed to delete the database.");
   }
-}
+};
 
 /**
- * Loads an image and generates its vector embedding using MobileNet.
- * @param {string} rawUri - Path to the image file.
- * @returns {Promise<SearchResult[]>} - The vector embedding.
+ * Retrieves an image record by its ID.
+ *
+ * @param imageId - The ID of the image.
+ * @returns {Promise<{ id: number; path: string }>} The image record.
  */
-export async function searchImageEmbeddings(rawUri: string, width: number, height: number): Promise<[]> {
+export const getImageById = async (imageId: number): Promise<{ id: number; path: string }> => {
   try {
-    let db = await getDatabase();
-    const [localUri, vectorEmbedding] = await getImageEmbedding(rawUri, width, height)
-    const embedding = prepEmbedings(vectorEmbedding);
-    // Clean Up
-    await FileSystem.deleteAsync(localUri);
-
-    const { rows } = await db.execute(`
-        SELECT images.id, images.path, vector_distance_cos(embedding, ?) as distance
-        FROM images
-        ORDER BY distance ASC
-        LIMIT 6;`, [embedding]);
-
-        return rows;
-
+    const database = await getDatabase();
+    const { rows } = await database.execute(
+      `SELECT images.id, images.path FROM images WHERE id = ?;`,
+      [imageId]
+    );
+    return rows[0];
   } catch (error) {
-    console.error('Error generating embedding:', error);
-    throw error;
-  }
-}
-
-/**
- * Stores an image embedding and path into an SQLite database.
- * @param {string} localUri - The local resized image file path.
- * @param {number[]} vectorEmbedding - The vector embedding.
- */
-export async function storeEmbedding(localUri: string | null, vectorEmbedding: number[]): Promise<void> {
-  if (!localUri) {
-      console.warn("localUri is null, skipping storage.");
-    return;
-  }
-  try {
-    let db = await getDatabase();
-    const embedding = prepEmbedings(vectorEmbedding);
-    await db.execute('INSERT INTO images (path, embedding) VALUES (?, ?)', [localUri, embedding]);
-    console.log("Successfully stored embedding and image.");
-  } catch (error) {
-      console.error("Error storing embedding:", error);
-  }
-}
-
-/**
- * Loads an image and generates its vector embedding using MobileNet.
- * @param {string} rawUri - URI of the image.
- * @returns {Promise<number[]>} - The vector embedding.
- */
-export async function getImageEmbedding(rawUri: string, width: number, height: number): Promise<[string, number[]]> {
-  try {
-    // Ensure TensorFlow.js is ready
-    await tf.ready();
-
-    const localUri = await saveImage(rawUri, width, height)
-    const arrayBuffer = await getImageBuffer(localUri)
-
-    // Decode image to tensor
-    const imageTensor = decodeJpeg(new Uint8Array(arrayBuffer))
-      .expandDims(0)
-      .toFloat()
-      .div(tf.scalar(255)); // Normalize pixel values
-
-    // Load MobileNet model
-    const model = await mobilenet.load();
-
-    // Get vector embedding
-    const embedding = model.infer(imageTensor, true) as tf.Tensor;
-
-    // Convert tensor to array
-    return [localUri, Array.from(await embedding.data())];
-  } catch (error) {
-      console.error("Error generating embedding:", error);
-    throw error;
-  }
-}
-
-// Function to fetch image paths from the database
-export const getImagePaths = async (): Promise<{ id: number, path: string }[]> => {
-  try {
-    let db = await getDatabase();
-    const { rows } = await db.execute(`SELECT images.id, images.path FROM images;`);
-    return rows;
-
-  } catch (error) {
-    console.error('Error generating embedding:', error);
+    console.error('Error fetching image by ID:', error);
     throw error;
   }
 };
 
+/**
+ * Stores an image path and its vector embedding into the database.
+ *
+ * @param localUri - The local URI of the image.
+ * @param vectorEmbedding - The vector embedding of the image.
+ */
+export const storeEmbedding = async (
+  localUri: string | null,
+  vectorEmbedding: number[]
+): Promise<void> => {
+  if (!localUri) {
+    console.warn("localUri is null, skipping storage.");
+    return;
+  }
+  try {
+    const database = await getDatabase();
+    // Dynamically import the embedding utility to clean the vector.
+    const embedding = prepEmbedings(vectorEmbedding);
+    await database.execute('INSERT INTO images (path, embedding) VALUES (?, ?)', [localUri, embedding]);
+    console.log("Successfully stored embedding and image.");
+  } catch (error) {
+    console.error("Error storing embedding:", error);
+  }
+};
+
+/**
+ * Retrieves all image records from the database.
+ *
+ * @returns {Promise<{ id: number; path: string }[]>} An array of image records.
+ */
+export const getImagePaths = async (): Promise<{ id: number; path: string }[]> => {
+  try {
+    const database = await getDatabase();
+    const { rows } = await database.execute(`SELECT images.id, images.path FROM images;`);
+    return rows;
+  } catch (error) {
+    console.error('Error fetching image paths:', error);
+    throw error;
+  }
+};
+
+/**
+ * Searches for similar images based on their embeddings.
+ *
+ * @param rawUri - URI of the image to search for.
+ * @param width - Width of the image.
+ * @param height - Height of the image.
+ * @returns {Promise<SearchResult[]>} A promise resolving with an array of search results.
+ */
+export async function searchImageEmbeddings(
+    rawUri: string,
+    width: number,
+    height: number
+  ): Promise<SearchResult[]> {
+    try {
+      const database = await getDatabase();
+      const [localUri, vectorEmbedding] = await getImageEmbedding(rawUri, width, height);
+      const embedding = prepEmbedings(vectorEmbedding);
+      // Remove the temporary processed image.
+      await FileSystem.deleteAsync(localUri);
+      const { rows } = await database.execute(
+        `
+        SELECT images.id, images.path, vector_distance_cos(embedding, ?) as distance
+        FROM images
+        ORDER BY distance ASC
+        LIMIT 6;
+        `,
+        [embedding]
+      );
+      return rows;
+    } catch (error) {
+      console.error('Error searching image embeddings:', error);
+      throw error;
+    }
+  }

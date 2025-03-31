@@ -1,231 +1,131 @@
-import React, { useEffect, useRef, useState } from "react";
-import { createStackNavigator, StackNavigationProp } from "@react-navigation/stack";
+// App.tsx
+import React, { useRef } from "react";
+import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { NavigationContainer, NavigationContainerRef, useNavigationContainerRef } from "@react-navigation/native";
-import { Menu, Divider, Provider as PaperProvider } from "react-native-paper";
-import { Alert, TouchableOpacity } from "react-native";
+import {
+  NavigationContainer,
+  NavigationContainerRef,
+} from "@react-navigation/native";
+import { Provider as PaperProvider } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import CameraScreen from "./components/CameraScreen";
 import HomeScreen from "./components/HomeScreen";
 import SearchScreen from "./components/SearchScreen";
 import SettingsScreen from "./components/SettingsScreen";
-import * as FileSystem from 'expo-file-system';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import EditScreen from "./components/EditScreen";
+import * as FileSystem from "expo-file-system";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import DropdownMenu from "./components/DropdownMenu";
 
-
-const DB_NAME = 'database.db';
-const DB_PATH = `${FileSystem.documentDirectory}SQLite/${DB_NAME}`;
-
-let iconName: "home" | "camera" | "search" | "settings"; // Define valid icon names here
-
-
-const deleteDatabase = async () => {
-  try {
-    // Check if the database exists
-    const dbExists = await FileSystem.getInfoAsync(DB_PATH);
-
-    if (dbExists.exists) {
-      await FileSystem.deleteAsync(DB_PATH);
-      await AsyncStorage.removeItem('isFirstLaunch'); // Reset first launch flag
-      Alert.alert("Success", "Database deleted successfully. Restart the app to take effect.");
-    } else {
-      Alert.alert("Info", "Database does not exist.");
-    }
-  } catch (error) {
-    console.error("Error deleting database:", error);
-    Alert.alert("Error", "Failed to delete the database.");
-  }
+// Define your route types
+export type RootStackParamList = {
+  Back: undefined;
+  EditScreen: { imageId: number };
+  Home: undefined;
+  Camera: undefined;
+  Search: undefined;
+  Settings: undefined;
 };
+
+const DB_NAME = "database.db";
+const DB_PATH = `${FileSystem.documentDirectory}SQLite/${DB_NAME}`;
 
 const deleteDbOnFirstLaunch = async () => {
   try {
-    const firstLaunch = await AsyncStorage.getItem('isFirstLaunch');
-
+    const firstLaunch = await AsyncStorage.getItem("isFirstLaunch");
     if (firstLaunch === null) {
       const dbExists = await FileSystem.getInfoAsync(DB_PATH);
       if (dbExists.exists) {
         await FileSystem.deleteAsync(DB_PATH);
-        console.log('Database deleted on first launch.');
+        console.log("Database deleted on first launch.");
       }
-      await AsyncStorage.setItem('isFirstLaunch', 'true');
+      await AsyncStorage.setItem("isFirstLaunch", "true");
     }
   } catch (error) {
-    console.error('Error checking first launch:', error);
+    console.error("Error checking first launch:", error);
   }
 };
 
 deleteDbOnFirstLaunch();
 
-// Define the navigation types
-export type RootStackParamList = {
-  Home: undefined;
-  Camera: undefined;
-  Search: undefined;
-  Settings: undefined;
-  ViewAll: undefined;
-  EditScreen: { imageId: number };
-};
-
-const Stack = createStackNavigator<RootStackParamList>();
+// Bottom Tab Navigator
 const Tab = createBottomTabNavigator();
-
-// Stack Navigator
-const MainStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen
+const Tabs = () => (
+  <Tab.Navigator
+    screenOptions={({ route }) => ({
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName: "home" | "camera" | "search" | "settings" = "home";
+        if (route.name === "Home") iconName = "home";
+        if (route.name === "Camera") iconName = "camera";
+        if (route.name === "Search") iconName = "search";
+        if (route.name === "Settings") iconName = "settings";
+        return (
+          <Ionicons
+            name={iconName}
+            size={size}
+            color={focused ? color : "gray"}
+          />
+        );
+      },
+      tabBarStyle: { height: 60 },
+    })}
+  >
+    <Tab.Screen
       name="Home"
       component={HomeScreen}
-      options={({ navigation }) => ({
-        unmountOnBlur: true,
-        headerLeft: () => null,
-        headerRight: () => <DropdownMenu navigation={navigation} />,
-        headerTitleAlign: "center",
-      })}
+      options={() => ({ headerShown: false, unmountOnBlur: true, })}
     />
-    <Stack.Screen
+    <Tab.Screen
       name="Camera"
       component={CameraScreen}
-      options={({ navigation }) => ({
-        unmountOnBlur: true,
-        headerLeft: () => null,
-        headerRight: () => <DropdownMenu navigation={navigation} />,
-        headerTitleAlign: "center",
-      })}
+      options={() => ({ headerShown: false, unmountOnBlur: true, })}
     />
-    <Stack.Screen
+    <Tab.Screen
       name="Search"
       component={SearchScreen}
-      options={({ navigation }) => ({
-        unmountOnBlur: true,
-        headerLeft: () => null,
-        headerRight: () => <DropdownMenu navigation={navigation} />,
-        headerTitleAlign: "center",
-      })}
+      options={() => ({ headerShown: false, unmountOnBlur: true, })}
     />
-    <Stack.Screen
+    <Tab.Screen
       name="Settings"
       component={SettingsScreen}
-      options={({ navigation }) => ({
+      options={() => ({
         unmountOnBlur: true,
-        headerLeft: () => null,
-        headerRight: () => <DropdownMenu navigation={navigation} />,
+        headerShown: true, // Show the header for HomeScreen
         headerTitleAlign: "center",
+        headerRight: () => <DropdownMenu/>,
       })}
     />
-    <Stack.Screen 
-      name="EditScreen" 
-      component={EditScreen}
-      options={({ navigation }) => ({
-        unmountOnBlur: true,
-        headerLeft: () => null,
-        headerRight: () => <DropdownMenu navigation={navigation} />,
-        headerTitleAlign: "center",
-      })} />
-    
-  </Stack.Navigator>
+  </Tab.Navigator>
 );
 
-// Bottom Tab Navigator
+// Root Stack Navigator wrapping the Tabs and the shared EditScreen
+const RootStack = createStackNavigator<RootStackParamList>();
+
 const App = () => {
-  const [viewMode, setViewMode] = useState("camera"); // Default mode
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
-  const [isNavigationReady, setIsNavigationReady] = useState(false);
-
-  useEffect(() => {
-    if (navigationRef.current?.isReady()) {
-      setIsNavigationReady(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Ensure viewMode updates are in sync with the tab changes
-  }, [viewMode]);
 
   return (
     <PaperProvider>
-      <NavigationContainer ref={navigationRef} onReady={() => setIsNavigationReady(true)}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <Tab.Navigator
-          screenOptions={({ route }) => ({
-            tabBarIcon: ({ focused, color, size }) => {
-              let iconName: "home" | "camera" | "search" | "settings" = "home";
-
-              if (route.name === "Main") iconName = "home";
-              if (route.name === "Search") iconName = "search";
-              if (route.name === "Settings") iconName = "settings";
-              if (route.name === "Add") iconName = "camera";
-
-              const iconColor = focused ? color : "gray"; // Active tab gets color, inactive gets gray
-
-              return <Ionicons name={iconName} size={size} color={iconColor} />;
-            },
-            tabBarStyle: { height: 60 },
-          })}
-        >
-          <Tab.Screen
-            name="Main"
-            component={MainStack}
-            options={{ headerShown: false }}
-          />
-
-          <Tab.Screen
-            name="Add"
-            component={CameraScreen} // Use CameraScreen for Add and Search
-          />
-
-          <Tab.Screen
-            name="Search"
-            component={SearchScreen}
-          />
-
-          <Tab.Screen name="Settings" component={SettingsScreen} />
-        </Tab.Navigator>
+      <NavigationContainer ref={navigationRef}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <RootStack.Navigator>
+            <RootStack.Screen
+              name="Back"
+              component={Tabs}
+              options={{ headerShown: false }}
+            />
+            <RootStack.Screen
+              name="EditScreen"
+              component={EditScreen}
+              options={{
+                headerTitleAlign: "center",
+              }}
+            />
+          </RootStack.Navigator>
         </GestureHandlerRootView>
       </NavigationContainer>
     </PaperProvider>
-  );
-};
-
-// Dropdown Menu
-type DropdownMenuProps = {
-  navigation: StackNavigationProp<RootStackParamList>;
-};
-
-const DropdownMenu: React.FC<DropdownMenuProps> = ({ navigation }) => {
-  const [visible, setVisible] = useState(false);
-
-  return (
-    <Menu
-      visible={visible}
-      onDismiss={() => setVisible(false)}
-      anchor={
-        <TouchableOpacity onPress={() => setVisible(true)} style={{ marginRight: 15 }}>
-          <Ionicons name="ellipsis-vertical" size={24} color="black" />
-        </TouchableOpacity>
-      }
-    >
-      <Menu.Item onPress={() => navigation.navigate("Home")} title="Copy Database" />
-      <Divider />
-      <Menu.Item onPress={() => navigation.navigate("ViewAll")} title="View Collection" />
-      <Divider />
-      <Menu.Item
-        onPress={() => {
-          setVisible(false);
-          Alert.alert(
-            "Delete Database",
-            "Are you sure you want to delete the database? This action cannot be undone.",
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "Delete", style: "destructive", onPress: deleteDatabase }
-            ]
-          );
-        }}
-        title="Delete Database"
-        titleStyle={{ color: 'red' }} // Highlight delete option in red
-      />
-    </Menu>
   );
 };
 

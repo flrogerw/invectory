@@ -1,54 +1,143 @@
-import React, { useRef, useState, useEffect } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert, Image } from "react-native";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Dimensions,
+} from "react-native";
 import { useIsFocused } from "@react-navigation/native";
-import { Camera, useCameraDevice, CameraPermissionStatus, useCameraPermission, useCameraFormat, getCameraFormat, CameraProps } from "react-native-vision-camera";
-import { getImageEmbedding, storeEmbedding } from "../utils/database";
-import Orientation from "react-native-orientation-locker";
+import {
+  Camera,
+  CameraProps,
+  useCameraDevice,
+  useCameraPermission,
+} from "react-native-vision-camera";
+import { getImageEmbedding } from '../utils/embedding';
+import { storeEmbedding } from '../utils/database';
 import * as FileSystem from "expo-file-system";
-import { Dimensions } from 'react-native';
-import Reanimated, { useAnimatedProps, useSharedValue, interpolate, Extrapolation } from 'react-native-reanimated'
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Reanimated, {
+  useAnimatedProps,
+  useSharedValue,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
 
-
-Reanimated.addWhitelistedNativeProps({
-  zoom: true,
-})
-const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera)
-
+// Allow native zoom property for reanimated camera
+Reanimated.addWhitelistedNativeProps({ zoom: true });
+const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera);
 
 const CameraScreen = () => {
   const permission = useCameraPermission();
+  const isFocused = useIsFocused();
+  const device = useCameraDevice("back");
+  const cameraRef = useRef<Camera>(null);
+
   const [uri, setUri] = useState<string | null>(null);
   const [embedding, setEmbedding] = useState<number[]>([]);
-  const [loading, setLoading] = useState(false); // Track processing state
-  // const [aspectRatio, setAspectRatio] = useState({ ratio: 0.75, height: 0, width: 0 }); // Track processing state
-  const isFocused = useIsFocused(); // Detects when screen is in focus
-  const device = useCameraDevice("back"); // Using the back camera
+  const [loading, setLoading] = useState(false);
 
-  const cameraRef = useRef<Camera>(null); // Camera reference for Vision Camera
-  const format = useCameraFormat(device, [
-    // { photoAspectRatio: aspectRatio.ratio },
-    //{ photoResolution: { width: 3024, height: 4032 } },
-  ]);
-  // Orientation.lockToPortrait();
+  // Shared zoom values for pinch gesture
+  const zoom = useSharedValue(device?.neutralZoom ?? 1);
+  const zoomOffset = useSharedValue(0);
 
   useEffect(() => {
-
     if (isFocused) {
-      setUri(null);  // Reset image when the screen is focused
-      setLoading(false); // Stop loading when screen is focused
-      if (isFocused && device) {
-        zoom.value = device?.neutralZoom ?? 1;
+      setUri(null);
+      setLoading(false);
+      if (device) {
+        zoom.value = device.neutralZoom ?? 1;
       }
     }
-  }, [isFocused, device]);
+  }, [isFocused, device, zoom]);
 
-  // If permission is not granted, show the permission request UI
+  // Define pinch gesture to adjust camera zoom
+  const gesture = Gesture.Pinch()
+    .onBegin(() => {
+      zoomOffset.value = zoom.value;
+    })
+    .onUpdate((event) => {
+      const z = zoomOffset.value * event.scale;
+      const minZoom = device?.minZoom ?? 1;
+      const maxZoom = device?.maxZoom ?? 200;
+      zoom.value = interpolate(z, [1, 200], [minZoom, maxZoom], Extrapolation.CLAMP);
+    });
+
+  const animatedProps = useAnimatedProps<CameraProps>(
+    () => ({
+      zoom: zoom.value,
+    }),
+    [zoom]
+  );
+
+  // Take a picture and process it
+  const takePicture = useCallback(async () => {
+    if (loading || !cameraRef.current) return;
+    if (uri) {
+      await FileSystem.deleteAsync(uri);
+    }
+    setUri(null);
+    setLoading(true);
+    try {
+      const photo = await cameraRef.current.takePhoto();
+      if (photo?.path) {
+        const { width: photoWidth, height: photoHeight } = photo;
+        const [localUri, vectorEmbedding] = await getImageEmbedding(
+          photo.path,
+          photoWidth,
+          photoHeight
+        );
+        setUri(localUri);
+        setEmbedding(vectorEmbedding);
+      }
+    } catch (error) {
+      console.error("Error processing image:", error);
+      Alert.alert("Error", "Failed to create image. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, uri]);
+
+  // Save the picture embedding to the database
+  const savePicture = useCallback(async () => {
+    setLoading(true);
+    try {
+      await storeEmbedding(uri, embedding);
+      Alert.alert("Success", "Image saved successfully!", [
+        {
+          text: "OK",
+          onPress: () => setUri(null),
+        },
+      ]);
+    } catch (error) {
+      console.error("Error saving image:", error);
+      Alert.alert("Error", "Failed to save image. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [uri, embedding]);
+
+  const resetCamera = useCallback(() => {
+    setUri(null);
+  }, []);
+
+  const { width: screenWidth } = Dimensions.get("window");
+  const squareSize = Math.floor(screenWidth - 8);
+
+  // If permission is still loading
   if (!permission) return null;
   if (!permission.hasPermission) {
     return (
       <View style={styles.container}>
-        <Text style={{ textAlign: "center" }}>
+        <Text style={styles.permissionText}>
           We need your permission to use the camera
         </Text>
         <Pressable onPress={() => permission.requestPermission()} style={styles.button}>
@@ -57,88 +146,6 @@ const CameraScreen = () => {
       </View>
     );
   }
-
-  // Ensure default values are provided if `minZoom` or `maxZoom` are undefined
-  const zoom = useSharedValue(device?.neutralZoom ?? 1); // Fallback to 1 if undefined
-  const zoomOffset = useSharedValue(0);
-
-  const gesture = Gesture.Pinch()
-    .onBegin(() => {
-      zoomOffset.value = zoom.value;
-    })
-    .onUpdate(event => {
-      const z = zoomOffset.value * event.scale;
-      const minZoom = device?.minZoom ?? 1; // Default to 1 if undefined
-      const maxZoom = device?.maxZoom ?? 200; // Default to 10 if undefined
-
-      zoom.value = interpolate(z, [1, 200], [minZoom, maxZoom], Extrapolation.CLAMP);
-    });
-
-  const animatedProps = useAnimatedProps<CameraProps>(
-    () => ({ zoom: zoom.value }),
-    [zoom]
-  )
-
-
-  const takePicture = async () => {
-    if (loading || !cameraRef.current) return; // Prevent multiple clicks
-    if (uri) {
-      await FileSystem.deleteAsync(uri);
-    }
-    setUri(null);
-
-    setLoading(true); // Start loading
-
-    try {
-      const photo = await cameraRef.current.takePhoto();
-
-      if (photo?.path) {
-
-        const [photoWidth, photoHeight] = [photo.height, photo.width];
-        // setAspectRatio({ ratio: photoWidth / photoHeight, width: photoWidth, height: photoHeight })
-
-        // Get image embedding and store it in the database
-        const [localUri, vectorEmbedding] = await getImageEmbedding(photo.path, photoWidth, photoHeight);
-        setUri(localUri);
-        setEmbedding(vectorEmbedding)
-      }
-    } catch (error) {
-      console.error("Error processing image:", error);
-      Alert.alert("Error", "Failed to create image. Please try again.", [{ text: "OK", },]);
-    }
-
-    setLoading(false);
-  };
-
-  const savePicture = async () => {
-
-    setLoading(true); // Start loading
-
-    try {
-      await storeEmbedding(uri, embedding);
-      Alert.alert("Success", "Image saved successfully!", [
-        {
-          text: "OK",
-          onPress: () => setUri(null), // Reset the image after success
-        },
-      ]);
-    } catch (error) {
-      console.error("Error processing image:", error);
-      Alert.alert("Error", "Failed to save image. Please try again.", [{ text: "OK", },]);
-    }
-
-    setLoading(false); // Stop loading
-  };
-
-  const { width: screenWidth } = Dimensions.get('window');
-
-  console.log(device?.sensorOrientation)
-  const squareSize = Math.floor(screenWidth - 8);
-
-  // Function to reset the camera view
-  const resetCamera = () => {
-    setUri(null); // Reset the displayed image
-  };
 
   return (
     <View style={styles.container}>
@@ -149,9 +156,8 @@ const CameraScreen = () => {
         </View>
       ) : uri ? (
         <View>
-          <Image source={{ uri }}  style={styles.imagePreview} />
+          <Image source={{ uri }} style={styles.imagePreview} />
           <Text style={styles.processingText}>Processing image...</Text>
-
           <View style={styles.buttonsContainer}>
             <Pressable onPress={resetCamera} style={styles.button}>
               <Text style={styles.buttonText}>Retake Picture</Text>
@@ -163,50 +169,36 @@ const CameraScreen = () => {
         </View>
       ) : (
         <>
-          <View style={[styles.cameraContainer, {}]} />
-          {device != null ? (
-            <GestureHandlerRootView style={[{ flex: 1, width: "100%" }]}>
-              <GestureDetector gesture={gesture} >
+          <View style={styles.cameraContainer} />
+          {device ? (
+            <GestureHandlerRootView style={{ flex: 1, width: "100%" }}>
+              <GestureDetector gesture={gesture}>
                 <ReanimatedCamera
                   ref={cameraRef}
-                  style={[
-                    styles.camera,
-                    StyleSheet.absoluteFill,
-                    {
-                      // borderRadius: 10,
-                      backgroundColor: "#222",
-                      //aspectRatio: aspectRatio.ratio,
-                    }
-                  ]}
-                  //zoom={0}
+                  style={[styles.camera, StyleSheet.absoluteFill]}
                   device={device}
                   animatedProps={animatedProps}
                   isActive={isFocused}
-                  photo={true}
-                  //format={format}
+                  photo
                   photoQualityBalance="quality"
                   outputOrientation="device"
                 />
               </GestureDetector>
             </GestureHandlerRootView>
-
           ) : (
             <Text style={{ color: "white" }}>Camera not available</Text>
           )}
-
-
           <View style={[styles.overlay, { width: squareSize, height: squareSize }]}>
             <View style={[styles.corner, styles.topLeft]} />
             <View style={[styles.corner, styles.topRight]} />
             <View style={[styles.corner, styles.bottomLeft]} />
             <View style={[styles.corner, styles.bottomRight]} />
           </View>
-
           <View style={styles.controlsContainer}>
             <Pressable onPress={takePicture} disabled={loading}>
               {({ pressed }) => (
                 <View style={[styles.shutterBtn, { opacity: pressed ? 0.5 : 1 }]}>
-                  <View style={[styles.shutterBtnInner, { backgroundColor: "black" }]} />
+                  <View style={styles.shutterBtnInner} />
                 </View>
               )}
             </Pressable>
@@ -217,13 +209,18 @@ const CameraScreen = () => {
   );
 };
 
-// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#121212",
     alignItems: "center",
     justifyContent: "center",
+  },
+  permissionText: {
+    textAlign: "center",
+    color: "white",
+    marginBottom: 20,
+    fontSize: 16,
   },
   loadingContainer: {
     alignItems: "center",
@@ -274,7 +271,7 @@ const styles = StyleSheet.create({
   imagePreview: {
     width: "100%",
     aspectRatio: 1,
-    borderRadius: 20, // Keeps rounded corners consistent
+    borderRadius: 20,
     marginBottom: 20,
   },
   buttonsContainer: {
@@ -283,7 +280,6 @@ const styles = StyleSheet.create({
     width: "100%",
     padding: 20,
   },
-
   button: {
     backgroundColor: "#007AFF",
     paddingVertical: 12,
@@ -301,7 +297,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     justifyContent: "center",
     alignItems: "center",
-
   },
   corner: {
     position: "absolute",

@@ -150,67 +150,76 @@ const CameraScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Processing...</Text>
-        </View>
-      ) : uri ? (
-        <View>
-          <Image source={{ uri }} style={styles.imagePreview} />
-          <Text style={styles.processingText}>Processing image...</Text>
-          <View style={styles.buttonsContainer}>
-            <Pressable onPress={resetCamera} style={styles.button}>
-              <Text style={styles.buttonText}>Retake Picture</Text>
-            </Pressable>
-            <Pressable onPress={savePicture} disabled={loading} style={styles.button}>
-              <Text style={styles.buttonText}>Save Picture</Text>
-            </Pressable>
+      <View style={styles.container}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Processing...</Text>
           </View>
-        </View>
-      ) : (
-        <>
-          <View style={styles.cameraContainer} />
-          {device ? (
-            <GestureHandlerRootView style={{ flex: 1, width: "100%" }}>
-              <GestureDetector gesture={gesture}>
-                <ReanimatedCamera
-                  ref={cameraRef}
-                  style={[styles.camera, StyleSheet.absoluteFill]}
-                  device={device}
-                  animatedProps={animatedProps}
-                  isActive={isFocused}
-                  resizeMode="contain"
-                  photo
-                  photoQualityBalance="quality"
-                  outputOrientation="device"
-                />
-              </GestureDetector>
-            </GestureHandlerRootView>
-          ) : (
-            <Text style={{ color: "white" }}>Camera not available</Text>
-          )}
-          <View style={[styles.overlay, { width: squareSize, height: squareSize }]}>
-            <View style={[styles.corner, styles.topLeft]} />
-            <View style={[styles.corner, styles.topRight]} />
-            <View style={[styles.corner, styles.bottomLeft]} />
-            <View style={[styles.corner, styles.bottomRight]} />
-          </View>
-          <View style={styles.controlsContainer}>
-            <Pressable onPress={takePicture} disabled={loading}>
-              {({ pressed }) => (
-                <View style={[styles.shutterBtn, { opacity: pressed ? 0.5 : 1 }]}>
-                  <View style={styles.shutterBtnInner} />
-                </View>
-              )}
+        ) : uri ? (
+          // Full-screen container for image + overlay
+          <View style={styles.fullScreen}>
+            {/* Close button in the upper right corner of the screen */}
+            <Pressable onPress={resetCamera} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>CANCEL</Text>
             </Pressable>
+            {/* The image appears below the close button */}
+            <Image source={{ uri }} style={styles.imagePreview} />
+            <Text style={styles.processingText}>Processing image...</Text>
+            <View style={styles.buttonsContainer}>
+              <Pressable onPress={resetCamera} style={styles.button}>
+                <Text style={styles.buttonText}>Retake Picture</Text>
+              </Pressable>
+              <Pressable onPress={savePicture} disabled={loading} style={styles.button}>
+                <Text style={styles.buttonText}>Save Picture</Text>
+              </Pressable>
+            </View>
           </View>
-        </>
-      )}
-    </View>
-  );
-};
+        ) : (
+          // Camera view
+          <>
+            <View style={styles.cameraContainer} />
+            {device ? (
+              <GestureHandlerRootView style={{ flex: 1, width: "100%" }}>
+                <GestureDetector gesture={gesture}>
+                  <ReanimatedCamera
+                    ref={cameraRef}
+                    style={[styles.camera, StyleSheet.absoluteFill]}
+                    device={device}
+                    animatedProps={animatedProps}
+                    isActive={isFocused}
+                    resizeMode="contain"
+                    photo
+                    photoQualityBalance="quality"
+                    outputOrientation="device"
+                  />
+                </GestureDetector>
+              </GestureHandlerRootView>
+            ) : (
+              <Text style={{ color: "white" }}>Camera not available</Text>
+            )}
+            <View style={[styles.overlay, { width: squareSize, height: squareSize }]}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+            </View>
+            <View style={styles.controlsContainer}>
+              <Pressable onPress={takePicture} disabled={loading}>
+                {({ pressed }) => (
+                  <View style={[styles.shutterBtn, { opacity: pressed ? 0.5 : 1 }]}>
+                    <View style={styles.shutterBtnInner} />
+                  </View>
+                )}
+              </Pressable>
+            </View>
+          </>
+        )}
+      </View>
+    );
+    
+   }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -218,6 +227,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#121212",
     alignItems: "center",
     justifyContent: "center",
+  },
+  fullScreen: {
+    flex: 1,
+    position: "relative",
   },
   permissionText: {
     textAlign: "center",
@@ -275,7 +288,20 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 1,
     borderRadius: 20,
+    marginTop: 50, 
     marginBottom: 20,
+  },
+  closeButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 100,
+    padding: 10, // Adjust touch area as needed
+  },
+  closeButtonText: {
+    fontSize: 14,
+    //fontWeight: "bold",
+    color: "#fff",
   },
   buttonsContainer: {
     flexDirection: "row",
@@ -335,6 +361,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 0,
     borderTopWidth: 0,
     borderRadius: 3,
+  },
+  screen: {
+    flex: 1,
+    position: 'relative',
   },
 });
 

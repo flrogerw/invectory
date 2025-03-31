@@ -9,14 +9,14 @@ import {
   Image,
   Dimensions,
 } from "react-native";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useFocusEffect } from "@react-navigation/native";
 import {
   Camera,
   useCameraDevice,
   useCameraPermission,
   CameraProps,
 } from "react-native-vision-camera";
-import { searchImageEmbeddings } from '../utils/database'
+import { searchImageEmbeddings } from "../utils/database";
 import Reanimated, {
   useAnimatedProps,
   useSharedValue,
@@ -30,34 +30,36 @@ import {
 } from "react-native-gesture-handler";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
-import ImageGrid from '../components/ImageGrid';
+import ImageGrid from "../components/ImageGrid";
+import ViewScreen from "../components/ViewScreen";
 
-// Allow native zoom property for reanimated camera
 Reanimated.addWhitelistedNativeProps({ zoom: true });
 const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera);
-
 
 const SearchScreen = () => {
   const permission = useCameraPermission();
   const isFocused = useIsFocused();
   const device = useCameraDevice("back");
   const cameraRef = useRef<Camera>(null);
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [uri, setUri] = useState<string | null>(null);
   const [results, setResults] = useState<{ id: number; path: string }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (isFocused) {
-      setUri(null);
-      setResults([]);
-      setLoading(false);
-      if (device) {
-        zoom.value = device.neutralZoom ?? 1;
-      }
-    }
-  }, [isFocused, device]);
+  // Reset state when the screen loses focus (for example, when switching tabs)
+  useFocusEffect(
+    React.useCallback(() => {
+      // When focused, do nothing
+      return () => {
+        // On blur, reset state so that when you return the screen starts fresh
+        setUri(null);
+        setResults([]);
+        setLoading(false);
+        setSelectedImageId(null);
+      };
+    }, [])
+  );
 
   if (!permission) return null;
   if (!permission.hasPermission) {
@@ -116,6 +118,8 @@ const SearchScreen = () => {
 
   const resetCamera = () => {
     setUri(null);
+    setResults([]);
+    setSelectedImageId(null);
   };
 
   const { width: screenWidth } = Dimensions.get("window");
@@ -129,15 +133,24 @@ const SearchScreen = () => {
           <Text style={styles.loadingText}>Searching...</Text>
         </View>
       ) : uri ? (
-        <View style={[styles.resultContainer]}>
+        <View style={styles.resultContainer}>
           <Image source={{ uri }} style={styles.imagePreview} />
           <ImageGrid
             images={results}
-            onImagePress={(id) => navigation.navigate("EditScreen", { imageId: id })}
+            onImagePress={(id) => setSelectedImageId(id)}
           />
           <Pressable style={styles.searchAgainBtn} onPress={resetCamera}>
             <Text style={styles.searchAgainText}>Search Again</Text>
           </Pressable>
+          {/* Render the embedded EditScreen overlay if an image is selected */}
+          {selectedImageId !== null && (
+            <View style={styles.editOverlay}>
+              <ViewScreen
+                imageId={selectedImageId}
+                onClose={() => setSelectedImageId(null)}
+              />
+            </View>
+          )}
         </View>
       ) : (
         <>
@@ -147,7 +160,7 @@ const SearchScreen = () => {
               <GestureDetector gesture={gesture}>
                 <ReanimatedCamera
                   ref={cameraRef}
-                  style={[styles.camera, StyleSheet.absoluteFill]}
+                  style={styles.camera}
                   device={device}
                   animatedProps={animatedProps}
                   isActive={isFocused}
@@ -223,6 +236,7 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
     width: "100%",
+    ...StyleSheet.absoluteFillObject,
   },
   controlsContainer: {
     position: "absolute",
@@ -248,7 +262,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#ff3b30",
   },
   resultContainer: {
-    //alignItems: "center",
     marginTop: 20,
     flex: 1,
     width: "100%",
@@ -319,18 +332,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 8,
   },
-  image: {
-    width: 130,
-    height: 130,
-    borderRadius: 12,
-    backgroundColor: "#1E1E1E",
-    shadowColor: "#BB86FC",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
-    borderWidth: 2,
-    borderColor: "#BB86FC",
+  editOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 

@@ -151,6 +151,7 @@ const SearchScreen = () => {
                   device={device}
                   animatedProps={animatedProps}
                   isActive={isFocused}
+                  resizeMode="contain"
                   photo
                   photoQualityBalance="quality"
                   outputOrientation="device"

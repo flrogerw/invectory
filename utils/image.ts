@@ -9,26 +9,36 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system';
 
 /**
- * Calculates centered crop dimensions for a square crop.
+ * Calculates centered crop dimensions for a square crop,
+ * taking into account a zoom factor.
+ *
+ * When zoom > 1, the effective field of view is reduced (i.e. width/zoom, height/zoom),
+ * and the crop is computed on that smaller region.
  *
  * @param width - The original image width.
  * @param height - The original image height.
- * @returns {Promise<{ height: number; originX: number; originY: number; width: number }>} 
- *          An object containing the crop dimensions.
+ * @param zoom - The zoom factor applied (default is 1, no zoom).
+ * @returns {Promise<{ width: number; height: number; originX: number; originY: number }>} 
+ *          An object with the dimensions and origin coordinates of the square crop.
  */
 export async function getCropDimensions(
   width: number,
-  height: number
-): Promise<{ height: number; originX: number; originY: number; width: number }> {
+  height: number,
+  zoom: number = 1
+): Promise<{ width: number; height: number; originX: number; originY: number }> {
+  // Compute the effective field-of-view dimensions based on the zoom factor.
   const minSize = Math.min(width, height);
-  const cropX = Math.floor((width - minSize) / 2);
-  const cropY = Math.floor((height - minSize) / 2);
-  return {
-    height: minSize,
-    originX: cropX,
-    originY: cropY,
-    width: minSize,
-  };
+ 
+   // Calculate crop origin (centered)
+   const cropY = Math.floor((width - minSize) / 2);
+   const cropX = Math.floor((height - minSize) / 2);
+ 
+   return {
+     height: minSize,
+     originX: cropX,
+     originY: cropY,
+     width: minSize
+   }
 }
 
 /**
@@ -43,10 +53,11 @@ export async function getCropDimensions(
 export async function saveImage(
   rawUri: string,
   width: number,
-  height: number
+  height: number,
+  zoom: number = 1
 ): Promise<string> {
   const context = ImageManipulator.manipulate(rawUri);
-  const cropDimensions = await getCropDimensions(width, height);
+  const cropDimensions = await getCropDimensions(width, height, zoom);
   context.crop(cropDimensions);
   context.resize({ width: 224, height: 224 });
   const image = await context.renderAsync();

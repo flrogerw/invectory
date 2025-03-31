@@ -93,7 +93,8 @@ const CameraScreen = () => {
         const [localUri, vectorEmbedding] = await getImageEmbedding(
           photo.path,
           photoWidth,
-          photoHeight
+          photoHeight,
+          zoom.value
         );
         setUri(localUri);
         setEmbedding(vectorEmbedding);
@@ -130,7 +131,8 @@ const CameraScreen = () => {
   }, []);
 
   const { width: screenWidth } = Dimensions.get("window");
-  const squareSize = Math.floor(screenWidth - 8);
+  const squareSize = Math.floor(screenWidth);
+  console.log(squareSize)
 
   // If permission is still loading
   if (!permission) return null;
@@ -179,6 +181,7 @@ const CameraScreen = () => {
                   device={device}
                   animatedProps={animatedProps}
                   isActive={isFocused}
+                  resizeMode="contain"
                   photo
                   photoQualityBalance="quality"
                   outputOrientation="device"

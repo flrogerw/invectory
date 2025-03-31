@@ -74,17 +74,17 @@ const Tabs = () => (
     <Tab.Screen
       name="Home"
       component={HomeScreen}
-      options={() => ({ headerShown: false, unmountOnBlur: true, })}
+      options={() => ({ headerShown: true, unmountOnBlur: true, })}
     />
     <Tab.Screen
       name="Camera"
       component={CameraScreen}
-      options={() => ({ headerShown: false, unmountOnBlur: true, })}
+      options={() => ({ headerShown: true, unmountOnBlur: true, })}
     />
     <Tab.Screen
       name="Search"
       component={SearchScreen}
-      options={() => ({ headerShown: false, unmountOnBlur: true, })}
+      options={() => ({ headerShown: true, unmountOnBlur: true, })}
     />
     <Tab.Screen
       name="Settings"

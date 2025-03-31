@@ -35,11 +35,12 @@ export function prepEmbedings(vectorEmbedding: number[]): Float32Array {
 export async function getImageEmbedding(
   rawUri: string,
   width: number,
-  height: number
+  height: number,
+  zoom: number = 1
 ): Promise<[string, number[]]> {
   try {
     await tf.ready();
-    const localUri = await saveImage(rawUri, width, height);
+    const localUri = await saveImage(rawUri, width, height, zoom);
     const arrayBuffer = await getImageBuffer(localUri);
     const imageTensor = decodeJpeg(new Uint8Array(arrayBuffer))
       .expandDims(0)

@@ -49,7 +49,7 @@ export const getDatabase = async (): Promise<any> => {
       CREATE TABLE IF NOT EXISTS images (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           path TEXT,
-          embedding FLOAT32(1024)
+          embedding FLOAT32(512)
       );
     `);
     await db.execute(`CREATE INDEX IF NOT EXISTS images_idx ON images (libsql_vector_idx(embedding));`);

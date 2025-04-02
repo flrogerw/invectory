@@ -134,7 +134,9 @@ const SearchScreen = () => {
         </View>
       ) : uri ? (
         <View style={styles.resultContainer}>
-          <Image source={{ uri }} style={styles.imagePreview} />
+          <View style={styles.imageContainer}>
+            <Image source={{ uri }} style={styles.imagePreview} />
+          </View>
           <ImageGrid
             images={results}
             onImagePress={(id) => setSelectedImageId(id)}
@@ -198,7 +200,8 @@ const SearchScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: "#FFF",
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -209,7 +212,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#316b99",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
@@ -226,7 +229,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 18,
-    color: "#ffffff",
+    color: "#316b99",
   },
   cameraContainer: {
     overflow: "hidden",
@@ -266,23 +269,36 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
   },
+  imageContainer: {
+    width: "80%",
+    aspectRatio: 1,
+    borderRadius: 5,
+    marginBottom: 20,
+    alignSelf: 'center',
+    backgroundColor: 'white', // Ensure a background color is set
+    shadowColor: '#fff',
+    shadowOffset: { width: 12, height: 12 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 5, // This affects Android
+  },
   imagePreview: {
     width: "100%",
-    aspectRatio: 1,
-    borderRadius: 20,
-    marginBottom: 20,
+    height: "100%",
+    borderRadius: 5,
   },
   searchAgainBtn: {
     position: "absolute",
     bottom: 20,
-    backgroundColor: "#007AFF",
+    backgroundColor: "#316b99",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
-    alignItems: "center",
+    alignSelf: "center",
+    width: "70%",
   },
   searchAgainText: {
-    color: "#fff",
+    color: "#e69d50",
     fontSize: 16,
     fontWeight: "600",
     alignSelf: "center",

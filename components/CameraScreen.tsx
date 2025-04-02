@@ -94,7 +94,6 @@ const CameraScreen = () => {
           photo.path,
           photoWidth,
           photoHeight,
-          zoom.value
         );
         setUri(localUri);
         setEmbedding(vectorEmbedding);
@@ -224,7 +223,7 @@ const CameraScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: "#FFF",
     alignItems: "center",
     justifyContent: "center",
   },

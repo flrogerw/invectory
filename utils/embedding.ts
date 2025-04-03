@@ -5,33 +5,54 @@ import { InferenceSession, Tensor } from 'onnxruntime-react-native';
 import { saveImage, getImageBuffer } from './image';
 import { Asset } from 'expo-asset';
 import { AppState } from 'react-native';
+import Tokenizer from "clip-bpe-js";
 
-let modelSession: any = null;
+let t = new Tokenizer();
+let modelImageSession: any = null;
+let modelTextSession: any = null;
 
 /**
  * Listens to app state changes and closes the database when the app goes inactive.
  */
 AppState.addEventListener('change', (state) => {
   if (state === 'inactive' || state === 'background') {
-    if (modelSession) {
-      modelSession = null;
+    if (modelImageSession || modelTextSession) {
+      modelImageSession = null;
+      modelTextSession = null;
     }
   }
 });
 
 /**
- * Initializes and returns the MobileCLIP model instance.
+ * Initializes and returns the MobileCLIP model instance
  *
- * @returns {Promise<any>} The model instance.
+ * @returns {Promise<any>} The Image model instance.
  */
-const getSession = async (): Promise<any> => {
-  if (!modelSession) {
-    const asset = Asset.fromModule(require('../assets/models/mobileclip_blt.onnx'));
+const getImageSession = async (): Promise<any> => {
+  modelTextSession = null;
+  if (!modelImageSession) {
+    const asset = Asset.fromModule(require('../assets/models/mobileclip_image.onnx'));
     await asset.downloadAsync();
     const modelPath = asset.localUri; // Use this URI to load the model with onnxruntime-react-native
-    modelSession = await InferenceSession.create(modelPath);
+    modelImageSession = await InferenceSession.create(modelPath);
   }
-  return modelSession;
+  return modelImageSession;
+};
+
+/**
+ * Initializes and returns the MobileCLIP model instance
+ *
+ * @returns {Promise<any>} The Text model instance.
+ */
+const getTextSession = async (): Promise<any> => {
+  modelImageSession = null;
+  if (!modelTextSession) {
+    const asset = Asset.fromModule(require('../assets/models/mobileclip_text.onnx'));
+    await asset.downloadAsync();
+    const modelTextPath = asset.localUri; // Use this URI to load the model with onnxruntime-react-native
+    modelTextSession = await InferenceSession.create(modelTextPath);
+  }
+  return modelTextSession;
 };
 
 
@@ -44,7 +65,7 @@ const getSession = async (): Promise<any> => {
 export function prepEmbedings(vectorEmbedding: number[]): Float32Array {
   const validEmbeddingArray = vectorEmbedding.map((val) => (val === -0 ? 0 : val));
   const cleanedEmbedding = validEmbeddingArray.map(value => (isNaN(value) ? 0 : value));
-  return new Float32Array(cleanedEmbedding);
+  return new Float32Array(vectorEmbedding);
 }
 
 /**
@@ -84,41 +105,26 @@ export async function getImageEmbedding(
     // Create an ONNX Runtime tensor from the preprocessed data
     const onnxInput = new Tensor("float32", inputData, shape);
 
-    const session = await getSession()
-    
-    // Prepare the model inputs. The key "input" must match your model's expected input name.
-    const feeds = { "x": onnxInput };
+    const session = await getImageSession()
+
+    const feeds = { "image": onnxInput };
     
     // Run inference with the ONNX model.
     const results = await session.run(feeds);
     
     // Retrieve the output tensor. Adjust "output" to the correct output name if needed.
-    const outputTensor = results["1302"];
+    const outputTensor = results["image_embedding"];
 
     const embeddingArray = Array.from(outputTensor.data as number[]);
     
     // Optionally, clean the embedding vector.
-    const cleanedEmbedding = prepEmbedings(embeddingArray);
+    const cleanedEmbedding = new Float32Array(embeddingArray);
     
     return [localUri, Array.from(cleanedEmbedding)];
   } catch (error) {
     console.error("Error generating embedding with ONNX:", error);
     throw error;
   }
-}
-
-/**
- * Hypothetical tokenizer function that returns an array of token IDs (numbers) for a given query.
- * You should replace this with your actual tokenizer implementation.
- *
- * @param query - The text to tokenize.
- * @returns {number[]} An array of token IDs.
- */
-function tokenize(query: string): number[] {
-  // This is a stub implementation.
-  // In practice, use a real tokenizer that matches MobileCLIP's text preprocessing.
-  const tokens = query.split(" ").map(word => word.length); // dummy: tokens are word lengths
-  return tokens;
 }
 
 /**
@@ -130,35 +136,25 @@ function tokenize(query: string): number[] {
 export async function getTextEmbedding(query: string): Promise<number[]> {
   try {
     // Tokenize the text query.
-    let tokens = tokenize(query);
-    const contextLength = 77; // Example: CLIP's context length is often 77.
+    let tokens = t.encodeForCLIP(query);
+    const contextLength = 77;
 
-    // Pad or truncate tokens to exactly contextLength.
-    if (tokens.length > contextLength) {
-      tokens = tokens.slice(0, contextLength);
-    } else if (tokens.length < contextLength) {
-      tokens = tokens.concat(new Array(contextLength - tokens.length).fill(0));
-    }
-
-    // Convert tokens to a BigInt64Array if the model expects int64.
-    // If your model accepts int32, you could use Int32Array instead.
-    const tokenArray = BigInt64Array.from(tokens.map(x => BigInt(x)));
-
-    // Create an ONNX Runtime Tensor with shape [1, contextLength].
-    const tokenTensor = new Tensor("int64", tokenArray, [1, contextLength]);
+    // Convert tokens directly to an Int32Array. Assume tokens are numbers.
+    const tokenArray = Int32Array.from(tokens.map((x: number) => x));
+    const tokenTensor = new Tensor("int32", tokenArray, [1, contextLength]);
 
     // Load the ONNX model for the text branch.
     // Ensure that the file "mobileclip_text.onnx" is correctly bundled or accessible.
-    const session = await InferenceSession.create("mobileclip_text.onnx");
+    const session = await getTextSession();
 
-    // Prepare the model's input. Adjust "input_ids" to match your model's expected input name.
-    const feeds = { "input_ids": tokenTensor };
+    // Prepare the model's input. Adjust "x" to match your model's expected input name.
+    const feeds = { "text": tokenTensor };
 
     // Run inference.
     const results = await session.run(feeds);
 
-    // Extract the output tensor. Adjust "output" to the name of your model's output.
-    const outputTensor = results["output"];
+    // Extract the output tensor. Adjust "1302" to your model's output name if needed.
+    const outputTensor = results["text_embedding"];
     const embeddingArray = Array.from(outputTensor.data as number[]);
 
     return embeddingArray;

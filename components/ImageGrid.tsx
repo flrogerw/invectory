@@ -23,7 +23,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images, onImagePress }) => (
           <Image source={{ uri: item.path }} style={styles.image} />
           {item.distance !== undefined && (
             <View style={styles.overlay}>
-              <Text style={styles.overlayText}>{(item.distance*100).toFixed(2)}</Text>
+              <Text style={styles.overlayText}>{item.distance.toFixed(2)}</Text>
             </View>
           )}
         </View>

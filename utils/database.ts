@@ -9,7 +9,7 @@ import { open } from '@op-engineering/op-sqlite';
 import * as FileSystem from 'expo-file-system';
 import { AppState, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getImageEmbedding, prepEmbedings }from './embedding';
+import { prepEmbedings } from './embedding';
 
 const DB_NAME = 'database.db';
 const DB_PATH = `${FileSystem.documentDirectory}SQLite/${DB_NAME}`;
@@ -145,17 +145,9 @@ export const getImagePaths = async (): Promise<{ id: number; path: string }[]> =
  * @param height - Height of the image.
  * @returns {Promise<SearchResult[]>} A promise resolving with an array of search results.
  */
-export async function searchImageEmbeddings(
-    rawUri: string,
-    width: number,
-    height: number
-  ): Promise<SearchResult[]> {
+export async function searchImageEmbeddings(vectorEmbedding: Float32Array<ArrayBufferLike>): Promise<SearchResult[]> {
     try {
       const database = await getDatabase();
-      const [localUri, vectorEmbedding] = await getImageEmbedding(rawUri, width, height);
-      const embedding = prepEmbedings(vectorEmbedding);
-      // Remove the temporary processed image.
-      await FileSystem.deleteAsync(localUri);
       const { rows } = await database.execute(
         `
         SELECT images.id, images.path, vector_distance_cos(embedding, ?) as distance
@@ -163,7 +155,7 @@ export async function searchImageEmbeddings(
         ORDER BY distance ASC
         LIMIT 6;
         `,
-        [embedding]
+        [vectorEmbedding]
       );
       return rows;
     } catch (error) {

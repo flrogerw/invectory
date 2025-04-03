@@ -27,6 +27,7 @@
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-node": "^4.22.0",
     "@tensorflow/tfjs-react-native": "^1.0.0",
+    "clip-bpe-js": "^0.0.6",
     "expo": "~52.0.40",
     "expo-camera": "^16.0.18",
     "expo-gl": "^15.0.4",

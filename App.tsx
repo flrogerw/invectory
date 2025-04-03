@@ -7,10 +7,10 @@ import {
   NavigationContainerRef,
 } from "@react-navigation/native";
 import { Provider as PaperProvider } from "react-native-paper";
-import { Ionicons } from "@expo/vector-icons";
+//import { Ionicons } from "@expo/vector-icons";
 import CameraScreen from "./components/CameraScreen";
 import HomeScreen from "./components/HomeScreen";
-import SearchScreen from "./components/SearchScreen";
+import SearchScreen from "./components/ImageSearchScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import EditScreen from "./components/EditScreen";
 import * as FileSystem from "expo-file-system";
@@ -18,13 +18,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import DropdownMenu from "./components/DropdownMenu";
 
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
 // Define your route types
 export type RootStackParamList = {
   Back: undefined;
   EditScreen: { imageId: number };
-  Home: undefined;
-  Camera: undefined;
-  Search: undefined;
+  Collection: undefined;
+  Add: undefined;
+  Text: undefined;
+  Image: undefined;
   Settings: undefined;
 };
 
@@ -55,13 +58,14 @@ const Tabs = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       tabBarIcon: ({ focused, color, size }) => {
-        let iconName: "home" | "camera" | "search" | "settings" = "home";
-        if (route.name === "Home") iconName = "home";
-        if (route.name === "Camera") iconName = "camera";
-        if (route.name === "Search") iconName = "search";
+        let iconName: "collections" | "add-a-photo" | "image-search" | "manage-search" | "settings" = "collections";
+        if (route.name === "Collection") iconName = "collections";
+        if (route.name === "Add") iconName = "add-a-photo";
+        if (route.name === "Image") iconName = "image-search";
+        if (route.name === "Text") iconName = "manage-search";
         if (route.name === "Settings") iconName = "settings";
         return (
-          <Ionicons
+          <MaterialIcons
             name={iconName}
             size={size}
             color={focused ? color : "gray"}
@@ -72,17 +76,22 @@ const Tabs = () => (
     })}
   >
     <Tab.Screen
-      name="Home"
+      name="Collection"
       component={HomeScreen}
       options={() => ({ headerShown: true, unmountOnBlur: true, })}
     />
     <Tab.Screen
-      name="Camera"
+      name="Add"
       component={CameraScreen}
       options={() => ({ headerShown: true, unmountOnBlur: true, })}
     />
     <Tab.Screen
-      name="Search"
+      name="Image"
+      component={SearchScreen}
+      options={() => ({ headerShown: true, unmountOnBlur: true, })}
+    />
+    <Tab.Screen
+      name="Text"
       component={SearchScreen}
       options={() => ({ headerShown: true, unmountOnBlur: true, })}
     />

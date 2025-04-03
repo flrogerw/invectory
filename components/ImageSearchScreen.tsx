@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Image,
   Dimensions,
 } from "react-native";
-import { useIsFocused, useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useIsFocused, useFocusEffect } from "@react-navigation/native";
 import {
   Camera,
   useCameraDevice,
@@ -28,10 +28,10 @@ import {
   GestureDetector,
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../App";
-import ImageGrid from "../components/ImageGrid";
-import ViewScreen from "../components/ViewScreen";
+import ImageGrid from "./ImageGrid";
+import ViewScreen from "./ViewScreen";
+import { getImageEmbedding, getTextEmbedding, prepEmbedings } from "../utils/embedding";
+import * as FileSystem from 'expo-file-system';
 
 Reanimated.addWhitelistedNativeProps({ zoom: true });
 const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera);
@@ -101,11 +101,20 @@ const SearchScreen = () => {
       setUri(photo.path);
       setLoading(true);
       try {
-        const searchResults = await searchImageEmbeddings(
+
+        //const txtEmbed = await getTextEmbedding("television")
+
+        const [localUri, vectorEmbedding] = await getImageEmbedding( 
           photo.path,
           photo.width,
-          photo.height
-        );
+          photo.height);
+        
+        // const embedding = prepEmbedings(vectorEmbedding);
+        const embedding = prepEmbedings(vectorEmbedding);
+        // Remove the temporary processed image.
+        await FileSystem.deleteAsync(localUri);
+
+        const searchResults = await searchImageEmbeddings(embedding);
         setResults(searchResults);
       } catch (error) {
         console.error("Error searching image embeddings:", error);
@@ -144,7 +153,6 @@ const SearchScreen = () => {
           <Pressable style={styles.searchAgainBtn} onPress={resetCamera}>
             <Text style={styles.searchAgainText}>Search Again</Text>
           </Pressable>
-          {/* Render the embedded EditScreen overlay if an image is selected */}
           {selectedImageId !== null && (
             <View style={styles.editOverlay}>
               <ViewScreen

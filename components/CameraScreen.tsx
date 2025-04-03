@@ -131,7 +131,6 @@ const CameraScreen = () => {
 
   const { width: screenWidth } = Dimensions.get("window");
   const squareSize = Math.floor(screenWidth);
-  console.log(squareSize)
 
   // If permission is still loading
   if (!permission) return null;

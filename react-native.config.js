@@ -6,4 +6,4 @@ export const dependencies = {
         },
     },
 };
-  
+export const assets = ['./assets/fonts/'];

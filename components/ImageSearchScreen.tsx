@@ -36,14 +36,14 @@ import * as FileSystem from 'expo-file-system';
 Reanimated.addWhitelistedNativeProps({ zoom: true });
 const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera);
 
-const SearchScreen = () => {
+const ImageSearchScreen = () => {
   const permission = useCameraPermission();
   const isFocused = useIsFocused();
   const device = useCameraDevice("back");
   const cameraRef = useRef<Camera>(null);
 
   const [uri, setUri] = useState<string | null>(null);
-  const [results, setResults] = useState<{ id: number; path: string }[]>([]);
+  const [results, setResults] = useState<{ id: number; path: string; distance?: number | null | undefined }[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
 
@@ -52,7 +52,6 @@ const SearchScreen = () => {
     React.useCallback(() => {
       // When focused, do nothing
       return () => {
-        // On blur, reset state so that when you return the screen starts fresh
         setUri(null);
         setResults([]);
         setLoading(false);
@@ -110,7 +109,7 @@ const SearchScreen = () => {
           photo.height);
         
         // const embedding = prepEmbedings(vectorEmbedding);
-        const embedding = prepEmbedings(vectorEmbedding);
+        const embedding = new Float32Array(vectorEmbedding);
         // Remove the temporary processed image.
         await FileSystem.deleteAsync(localUri);
 
@@ -208,7 +207,7 @@ const SearchScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFF",
+    backgroundColor: "#e0caa2",
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
@@ -243,6 +242,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#e0caa2",
   },
   camera: {
     flex: 1,
@@ -276,6 +276,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     flex: 1,
     width: "100%",
+    backgroundColor: "#e0caa2",
   },
   imageContainer: {
     width: "80%",
@@ -283,7 +284,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 20,
     alignSelf: 'center',
-    backgroundColor: 'white', // Ensure a background color is set
+    backgroundColor: "#e0caa2",
     shadowColor: '#fff',
     shadowOffset: { width: 12, height: 12 },
     shadowOpacity: 0.8,
@@ -294,6 +295,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 5,
+    backgroundColor: "#e0caa2",
   },
   searchAgainBtn: {
     position: "absolute",
@@ -351,11 +353,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     borderRadius: 3,
   },
-  imageCard: {
-    flex: 1 / 3,
-    alignItems: "center",
-    padding: 8,
-  },
   editOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.8)",
@@ -364,4 +361,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SearchScreen;
+export default ImageSearchScreen;

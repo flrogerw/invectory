@@ -19,7 +19,7 @@ let db: any = null;
 export interface SearchResult {
     id: number;
     path: string;
-    distance?: number; // Optional: cosine distance value
+    distance?: number | null | undefined; // Optional: cosine distance value
   }
 
 /**

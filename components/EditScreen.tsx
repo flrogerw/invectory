@@ -35,33 +35,43 @@ const EditScreen = () => {
   if (!image) return <Text>Loading...</Text>;
 
   return (
-
-    <View style={styles.imageContainer}  {...panResponder.panHandlers}>
-      <Image source={{ uri: image.path }} style={styles.previewImage} />
-      <Text>Editing Image {imageId}</Text>
+    <View style={styles.container}  {...panResponder.panHandlers}>
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: image.path }} style={styles.previewImage} />
+      </View>
+      <View>
+        <Text>Editing Image {imageId}</Text>
+      </View>
     </View>
-
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1, 
+    backgroundColor: '#e0caa2'
+  },
   imageContainer: {
-    flex: 1,
-    alignItems: "center",  // Centers horizontally
-    justifyContent: "center", // Centers vertically
+    width: "80%",
+    aspectRatio: 1,
+    borderRadius: 5,
+    marginBottom: 20,
+    marginTop: 20,
+    alignSelf: 'center',
+    backgroundColor: '#e69d50', // Ensure a background color is set
+    shadowColor: "#2a241d",
+    shadowOffset: { width: 8, height: 8 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 5, // This affects Android
 
   },
   previewImage: {
-    width: 300,
-    height: 300,
-    borderRadius: 10,
-    marginVertical: 20,
+    width: "100%",
+    height: "100%",
+    borderRadius: 5,
     alignSelf: "center",
-    position: "absolute",
-    top: 0, // Puts it at the very top
-  },
-  container: {
-    flex: 1,
+
   },
   content: {
     justifyContent: "center",

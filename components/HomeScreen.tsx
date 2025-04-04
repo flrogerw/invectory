@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet, Text } from 'react-native';
 import { RootStackParamList } from '../App';
 import { getImagePaths } from '../utils/database';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 const HomeScreen = () => {
   const [images, setImages] = useState<{ id: number; path: string }[]>([]);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const backgroundSource = require('../assets/icon.png');
 
   useFocusEffect(
     useCallback(() => {
@@ -25,14 +26,19 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>InVectory</Text>
-      </View>
-      <Text style={styles.sectionTitle}>Collection</Text>
-      <ImageGrid
-        images={images}
-        onImagePress={(id) => navigation.navigate("EditScreen", { imageId: id })}
+      <Image
+        source={backgroundSource}
+        style={styles.imageBackground}
       />
+      <View style={styles.imageGridContainer}>
+        <ImageGrid
+          images={images}
+          onImagePress={(id) => navigation.navigate("EditScreen", { imageId: id })}
+        />
+      </View>
+      <View style={styles.clickEdit}>
+        <Text>CLICK AN IMAGE TO EDIT</Text>
+      </View>
     </View>
   );
 };
@@ -40,52 +46,20 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
-    paddingVertical: 20,
   },
-  header: {
-    marginTop: 50,
-    paddingBottom: 15,
+  imageBackground: {
+    height: 200,       // or whatever height your top image should have
+    width: '100%',
+    resizeMode: 'cover',
+  },
+  imageGridContainer: {
+    flex: 1,           // This will fill the remaining vertical space
+  },
+  clickEdit: {
+    height: 50,        // Fixed height for the bottom view
+    justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: '#BB86FC',
-  },
-  headerText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    fontFamily: 'Avenir Next',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#BB86FC',
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  imageCard: {
-    flex: 1 / 3,
-    alignItems: 'center',
-    padding: 8,
-  },
-  image: {
-    width: 130,
-    height: 130,
-    borderRadius: 12,
-    backgroundColor: '#1E1E1E',
-    shadowColor: '#BB86FC',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
-    borderWidth: 2,
-    borderColor: '#BB86FC',
+    backgroundColor: '#e0caa2',
   },
 });
-
 export default HomeScreen;

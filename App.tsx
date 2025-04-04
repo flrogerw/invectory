@@ -10,15 +10,24 @@ import { Provider as PaperProvider } from "react-native-paper";
 //import { Ionicons } from "@expo/vector-icons";
 import CameraScreen from "./components/CameraScreen";
 import HomeScreen from "./components/HomeScreen";
-import SearchScreen from "./components/ImageSearchScreen";
+import ImageSearchScreen from "./components/ImageSearchScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import EditScreen from "./components/EditScreen";
 import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import DropdownMenu from "./components/DropdownMenu";
+import * as Font from 'expo-font';
+import LogoTitle from './components/LogoTitle';
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import TextSearchScreen from "./components/TextSearchScreen";
+
+const fetchFonts = () => {
+  return Font.loadAsync({
+    'Audiowide-Regular': require('./assets/fonts/Audiowide-Regular.ttf'),
+  });
+};
 
 // Define your route types
 export type RootStackParamList = {
@@ -67,18 +76,28 @@ const Tabs = () => (
         return (
           <MaterialIcons
             name={iconName}
-            size={size}
+            size={30}
             color={focused ? color : "gray"}
           />
         );
       },
-      tabBarStyle: { height: 60 },
+      tabBarActiveTintColor: '#e69d50',    // Custom active color
+      tabBarInactiveTintColor: "gray", // Custom inactive color
+      tabBarStyle: {  height: 70, backgroundColor: "#2a241d" },
+      headerStyle: {
+        backgroundColor: '#e0caa2',
+      },
+      headerTintColor: '#fff',
+      headerTitleAlign: 'center',
+      headerTitle: () => <LogoTitle />,
+    
+
     })}
   >
     <Tab.Screen
       name="Collection"
       component={HomeScreen}
-      options={() => ({ headerShown: true, unmountOnBlur: true, })}
+      options={() => ({ title: 'Collection', headerShown: true, unmountOnBlur: true, })}
     />
     <Tab.Screen
       name="Add"
@@ -87,12 +106,12 @@ const Tabs = () => (
     />
     <Tab.Screen
       name="Image"
-      component={SearchScreen}
+      component={ImageSearchScreen}
       options={() => ({ headerShown: true, unmountOnBlur: true, })}
     />
     <Tab.Screen
       name="Text"
-      component={SearchScreen}
+      component={TextSearchScreen}
       options={() => ({ headerShown: true, unmountOnBlur: true, })}
     />
     <Tab.Screen
@@ -102,7 +121,7 @@ const Tabs = () => (
         unmountOnBlur: true,
         headerShown: true, // Show the header for HomeScreen
         headerTitleAlign: "center",
-        headerRight: () => <DropdownMenu/>,
+        headerRight: () => <DropdownMenu />,
       })}
     />
   </Tab.Navigator>
@@ -118,7 +137,12 @@ const App = () => {
     <PaperProvider>
       <NavigationContainer ref={navigationRef}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <RootStack.Navigator>
+          <RootStack.Navigator screenOptions={{
+            headerStyle: {
+              backgroundColor: '#e0caa2', // Global header background color
+            },
+            headerTintColor: '#fff', // Global header text color
+          }}>
             <RootStack.Screen
               name="Back"
               component={Tabs}
@@ -129,6 +153,12 @@ const App = () => {
               component={EditScreen}
               options={{
                 headerTitleAlign: "center",
+                headerStyle: {
+                  backgroundColor: '#e0caa2',
+                },
+                headerTintColor: "#2a241d",
+                headerTitle: () => <LogoTitle />,
+              
               }}
             />
           </RootStack.Navigator>
